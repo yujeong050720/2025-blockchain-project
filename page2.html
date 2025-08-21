@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>채팅 & 링크</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #chatBox { border: 1px solid #ccc; padding: 10px; width: 100%; height: 300px; overflow-y: auto; margin-bottom: 10px; }
+    #messageInput { width: 80%; padding: 5px; }
+    #sendBtn { padding: 5px 10px; }
+    .message { margin-bottom: 5px; }
+    .from { font-weight: bold; margin-right: 5px; }
+  </style>
+</head>
+<body>
+  <h1>채팅 & 링크 페이지</h1>
+
+  <div>
+    <label>닉네임: <input type="text" id="nickname" readonly></label>
+  </div>
+
+  <h2>채팅</h2>
+  <div id="chatBox"></div>
+  <input type="text" id="messageInput" placeholder="메시지 입력">
+  <button id="sendBtn">Send</button>
+
+  <script>
+const socket = io();
+
+const chatBox = document.getElementById('chatBox');
+//const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const nicknameInput = document.getElementById('nickname');
+
+// ====== index.html에서 전달된 nickname/wallet 처리 ======
+const params = new URLSearchParams(window.location.search);
+const nickname = params.get('nickname');
+const wallet = params.get('wallet');
+
+//잘됨///////////////////////////
+// 닉네임 input에 자동 채우기
+if (nickname) nicknameInput.value = nickname;
+
+// 서버에 사용자 등록
+if (nickname && wallet) {
+  socket.emit('registerUser', { walletAddr: wallet, nickname });
+}
+//잘됨////////////////////////////
+//수정완료s//////////////////
+
+// 기존 채팅 로그 수신
+socket.on('chatLogs', (logs) => {
+  chatBox.innerHTML = ''; 
+  logs.forEach(log => addMessage(log.fromUser, log.link));
+  chatBox.scrollTop = chatBox.scrollHeight;
+});
+
+// 새 링크 보냇을 때 서버로 보냄
+document.getElementById('sendBtn').addEventListener('click', () => {
+  const message = document.getElementById('messageInput').value;
+  const nickname = document.getElementById('nickname').value; 
+  if (!message) return;
+
+  // 서버에 newLink 이벤트 전송
+  socket.emit('newLink', {fromUser: nickname, link: message});
+  document.getElementById('messageInput').value = '';
+});
+
+// 서버에서 perscore 체크된 메시지 재수신
+socket.on('receiveMessage', ({ fromUser, link }) => {
+  const nickname = fromUser;
+  const message = link;
+  addMessage(nickname, message);
+});
+
+const urlRegex = /(https?:\/\/[^\s]+)/g;
+function addMessage(nickname, message) {
+  // message가 없으면 함수 종료 (화면에 추가하지 않음)
+  if (!message) return;
+
+  // message가 문자열 아닌 경우에도 안전하게 문자열로 변환
+  message = String(message);
+
+  const formattedMessage = message.replace(urlRegex, url =>
+    `<a href="#" class="chat-link" data-url="${url}">${url}</a>`
+  );
+
+  const div = document.createElement('div');
+  div.innerHTML = `<span class="from">${nickname}:</span> ${formattedMessage}`;
+  chatBox.appendChild(div);
+  div.scrollIntoView();
+}
+
+//수정완료f/////////////////////////////////////////////////////////////
+  // 링크 클릭 이벤트 등록
+chatBox.addEventListener('click', e => {
+  if (e.target.classList.contains('chat-link')) {
+    e.preventDefault();
+    const url = e.target.dataset.url;
+    const toUser = document.getElementById('nickname').value.trim();
+    // fromUser는 메시지를 보낸 사람 닉네임으로 다르게 처리해야 함
+    // 예: 클릭한 링크가 있는 div에서 fromUser를 찾는 로직 추가 필요
+    const fromUserElem = e.target.closest('div').querySelector('.from');
+    const fromUser = fromUserElem ? fromUserElem.textContent.replace(':', '') : 'unknown';
+
+    socket.emit('linkClicked', { fromUser, toUser, link: url });
+    console.log('링크 클릭:', toUser, '->', fromUser, url);
+  }
+});
+
+
+
+
+// // 메시지 전송
+// sendBtn.addEventListener('click', () => {
+//   const fromUser = nicknameInput.value.trim();
+//   const message = messageInput.value.trim();
+
+//   if (!fromUser || !message) {
+//     alert('닉네임과 메시지를 입력하세요.');
+//     return;
+//   }
+
+//   socket.emit('sendMessage', { fromUser, message });
+//   messageInput.value = '';
+// });
+
+// // 엔터키 전송
+// messageInput.addEventListener('keydown', (e) => {
+//   if (e.key === 'Enter') sendBtn.click();
+// });
+</script>

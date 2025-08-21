@@ -1,0 +1,59 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Login Page</title>
+</head>
+<body>
+  <h2>사용자 로그인</h2>
+  <form id="loginForm">
+    <label>닉네임: <input type="text" id="nickname" required></label><br><br>
+    <label>지갑 주소: <input type="text" id="wallet" required></label><br><br>
+    <label>링크 입력: <input type="text" id="userLink" placeholder="https://example.com"></label><br><br>
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+   const form = document.getElementById('loginForm');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const nickname = document.getElementById('nickname').value.trim();
+      const wallet = document.getElementById('wallet').value.trim();
+
+     if (!nickname || !wallet) {
+        alert('닉네임과 지갑 주소를 입력하세요.');
+        return;
+     }
+
+     try {
+        const res = await fetch('/api/registerUser', {
+          method: 'POST',
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ nickname, wallet })
+        });
+       const data = await res.json();
+
+        if (res.ok) {
+          if (data.status === 'success') {
+            alert('회원 등록 성공!');
+          } else if (data.status === 'existing') {
+            alert('불러오기 완료!');
+          }
+
+          // page2.html로 이동
+          const userLink = document.getElementById('userLink').value.trim();
+          const query = `nickname=${encodeURIComponent(data.nickname)}&wallet=${encodeURIComponent(data.wallet)}&link=${encodeURIComponent(userLink)}`;
+          window.location.href = `page2.html?${query}`;} else {alert('불러오기 성공' + (data.message || '알 수 없는 오류'));
+
+
+              }
+              } catch (err) {
+                alert('통신 중 오류 발생: ' + err.message);
+            }
+    });
+  </script>
+
+</body>
+</html>
